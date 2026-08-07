@@ -1,0 +1,6 @@
+/* App-level layout imports */
+@import './styles/layout.css';
+@import './styles/dashboard.css';
+@import './styles/recognition.css';
+@import './styles/skeleton.css';
+@import './styles/responsive.css';
