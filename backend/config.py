@@ -15,18 +15,19 @@ UPLOAD_DIR = PROJECT_ROOT / "uploads"
 for folder in [DATASET_ROOT, VIDEO_DIR, METADATA_DIR, PROCESSED_DIR, CHECKPOINT_DIR, OUTPUT_DIR, UPLOAD_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
 
-# Best 10 classes by available video count from WLASL dataset
+# Top 104 classes with 10+ videos available locally from WLASL dataset
 CLASSES = [
-    "before",
-    "thin",
-    "cool",
-    "drink",
-    "go",
-    "computer",
-    "who",
-    "cousin",
-    "help",
-    "candy"
+    "before", "thin", "cool", "drink", "go", "computer", "who", "cousin", "help", "candy",
+    "thanksgiving", "bed", "bowling", "tall", "accident", "short", "trade", "yes", "what", "later",
+    "man", "shirt", "change", "corn", "dark", "last", "pizza", "basketball", "call", "cold",
+    "deaf", "no", "walk", "mother", "woman", "dog", "family", "apple", "play", "letter",
+    "thursday", "bar", "brother", "check", "laugh", "room", "take", "why", "example", "far",
+    "leave", "soon", "champion", "delay", "environment", "score", "year", "black", "hot", "like",
+    "many", "orange", "fish", "graduate", "language", "study", "white", "bird", "doctor", "give",
+    "secretary", "work", "cheat", "full", "son", "tell", "wait", "cry", "snow", "write",
+    "yesterday", "bad", "blanket", "daughter", "good", "balance", "because", "convince", "fat", "government",
+    "interest", "order", "sandwich", "theory", "argue", "delicious", "move", "perspective", "silly", "sweet",
+    "appointment", "ready", "speech", "toast"
 ]
 NUM_CLASSES = len(CLASSES)
 
