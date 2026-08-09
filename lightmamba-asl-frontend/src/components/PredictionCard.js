@@ -28,14 +28,13 @@ export function PredictionCard({ result }) {
   return (
     <div className="prediction-result-card">
       <div className="prediction-label">Recognized Sign</div>
-      <div className={`prediction-word gradient-text${uncertain ? ' uncertain' : ''}`}
-           style={uncertain ? { background: 'none', WebkitTextFillColor: 'var(--accent-amber)', color: 'var(--accent-amber)' } : {}}>
-        {uncertain ? 'UNCERTAIN' : prediction?.toUpperCase()}
+      <div className={`prediction-word gradient-text${uncertain ? ' uncertain' : ''}`}>
+        {prediction?.toUpperCase()}
       </div>
 
       {uncertain && (
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-          The gesture could not be recognized with sufficient confidence.
+        <p style={{ fontSize: '0.82rem', color: 'var(--accent-amber)', marginBottom: '12px' }}>
+          ⚠️ Low confidence — result may not be accurate.
         </p>
       )}
 

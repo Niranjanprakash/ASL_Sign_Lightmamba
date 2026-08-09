@@ -2,61 +2,56 @@ import numpy as np
 
 def normalize_landmarks(landmarks: np.ndarray, mask: np.ndarray) -> np.ndarray:
     """
-    Normalizes coordinates.
-    landmarks shape: [T, 75, 3] where:
-      - 0 to 20: Left Hand
-      - 21 to 41: Right Hand
-      - 42 to 74: Pose
-    mask shape: [T, 3] where mask[t] = [lh_valid, rh_valid, pose_valid]
-    
-    Normalization steps:
-      - Center and scale hands relative to wrist (index 0 of each hand)
-      - Center and scale pose relative to shoulder mid-point and shoulder distance.
+    Normalizes landmarks using VIDEO-LEVEL fixed scale to avoid per-frame noise.
+    landmarks: [T, 75, 3]  mask: [T, 3]
+    Returns:   [T, 75, 3]
+
+    Strategy:
+      - Hands: centered on wrist; scale = median of per-frame max-joint-distances
+        across all valid frames (video-level stable reference).
+      - Pose: centered on shoulder midpoint; scale = median shoulder distance
+        across all valid pose frames.
     """
     T, N, D = landmarks.shape
     normalized = np.zeros_like(landmarks)
-    
-    for t in range(T):
-        lh_valid = mask[t, 0] > 0.5
-        rh_valid = mask[t, 1] > 0.5
-        pose_valid = mask[t, 2] > 0.5
-        
-        # 1. Left Hand (0 to 21)
-        if lh_valid:
-            lh = landmarks[t, 0:21].copy()
-            wrist = lh[0] # Left hand wrist
-            lh_centered = lh - wrist
-            # Scale by max distance to any joint to normalize size to [0, 1] bounds roughly
-            scale = np.max(np.linalg.norm(lh_centered, axis=1))
-            if scale > 1e-5:
-                lh_centered /= scale
-            normalized[t, 0:21] = lh_centered
-            
-        # 2. Right Hand (21 to 42)
-        if rh_valid:
-            rh = landmarks[t, 21:42].copy()
-            wrist = rh[0] # Right hand wrist
-            rh_centered = rh - wrist
-            scale = np.max(np.linalg.norm(rh_centered, axis=1))
-            if scale > 1e-5:
-                rh_centered /= scale
-            normalized[t, 21:42] = rh_centered
-            
-        # 3. Pose (42 to 75)
-        if pose_valid:
-            pose = landmarks[t, 42:75].copy()
-            # Left shoulder is Pose index 11 (42 + 11 = 53), Right shoulder is index 12 (42 + 12 = 54)
-            left_shoulder = pose[11]
-            right_shoulder = pose[12]
-            shoulder_mid = (left_shoulder + right_shoulder) / 2.0
-            pose_centered = pose - shoulder_mid
-            
-            # Scale by distance between shoulders
-            scale = np.linalg.norm(left_shoulder - right_shoulder)
-            if scale > 1e-5:
-                pose_centered /= scale
-            normalized[t, 42:75] = pose_centered
 
-    # Ensure no NaN or Inf values
+    # --- Pre-compute video-level scales ---
+    lh_scales, rh_scales, pose_scales = [], [], []
+    for t in range(T):
+        if mask[t, 0] > 0.5:
+            lh = landmarks[t, 0:21]
+            d = np.max(np.linalg.norm(lh - lh[0], axis=1))
+            if d > 1e-5:
+                lh_scales.append(d)
+        if mask[t, 1] > 0.5:
+            rh = landmarks[t, 21:42]
+            d = np.max(np.linalg.norm(rh - rh[0], axis=1))
+            if d > 1e-5:
+                rh_scales.append(d)
+        if mask[t, 2] > 0.5:
+            pose = landmarks[t, 42:75]
+            d = np.linalg.norm(pose[11] - pose[12])  # shoulder distance
+            if d > 1e-5:
+                pose_scales.append(d)
+
+    lh_scale   = float(np.median(lh_scales))   if lh_scales   else 1.0
+    rh_scale   = float(np.median(rh_scales))   if rh_scales   else 1.0
+    pose_scale = float(np.median(pose_scales)) if pose_scales else 1.0
+
+    # --- Apply per-frame centering with video-level scale ---
+    for t in range(T):
+        if mask[t, 0] > 0.5:
+            lh = landmarks[t, 0:21].copy()
+            normalized[t, 0:21] = (lh - lh[0]) / lh_scale
+
+        if mask[t, 1] > 0.5:
+            rh = landmarks[t, 21:42].copy()
+            normalized[t, 21:42] = (rh - rh[0]) / rh_scale
+
+        if mask[t, 2] > 0.5:
+            pose = landmarks[t, 42:75].copy()
+            shoulder_mid = (pose[11] + pose[12]) / 2.0
+            normalized[t, 42:75] = (pose - shoulder_mid) / pose_scale
+
     normalized = np.where(np.isfinite(normalized), normalized, 0.0)
     return normalized

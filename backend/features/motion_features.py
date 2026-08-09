@@ -1,27 +1,38 @@
 import numpy as np
 from backend.config import USE_SECOND_ORDER_MOTION
 
-def compute_motion_features(normalized_landmarks: np.ndarray) -> np.ndarray:
+def compute_motion_features(landmarks: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
     """
-    Computes first-order differences (displacement) of landmarks across time.
-    normalized_landmarks shape: [T, N, D]
-    Returns motion features of shape [T, N * D] or [T, N * D * 2] if second order is enabled.
+    Computes mask-aware first (and optional second) order motion features.
+    landmarks: [T, N, D]  (3-D landmark array)
+    mask:      [T, 3]     (optional validity mask — left_hand, right_hand, pose)
+    Returns:   [T, N*D] or [T, N*D*2]
+
+    Rule: motion at frame t is non-zero only when BOTH frame t-1 AND frame t
+    have at least one valid landmark group detected. This prevents fake spikes
+    caused by MediaPipe detection flicker (landmark appearing/disappearing).
     """
-    T, N, D = normalized_landmarks.shape
-    flat_landmarks = normalized_landmarks.reshape(T, N * D)
-    
-    # First-order motion: delta_t = L_t - L_{t-1}
-    first_order = np.zeros_like(flat_landmarks)
-    first_order[1:] = flat_landmarks[1:] - flat_landmarks[:-1]
-    
-    if USE_SECOND_ORDER_MOTION:
-        # Second-order motion: delta2_t = delta_t - delta_{t-1}
-        second_order = np.zeros_like(first_order)
-        second_order[1:] = first_order[1:] - first_order[:-1]
-        
-        # Concatenate first and second order
-        motion_features = np.concatenate([first_order, second_order], axis=-1)
+    T, N, D = landmarks.shape
+    flat = landmarks.reshape(T, N * D)
+
+    # Build per-frame validity flag: True if any landmark group is detected
+    if mask is not None:
+        frame_valid = mask.sum(axis=1) > 0  # [T] bool
     else:
-        motion_features = first_order
-        
-    return motion_features
+        frame_valid = np.ones(T, dtype=bool)
+
+    # First-order motion
+    first_order = np.zeros_like(flat)
+    for t in range(1, T):
+        if frame_valid[t] and frame_valid[t - 1]:
+            first_order[t] = flat[t] - flat[t - 1]
+        # else: stays zero — no fake spike
+
+    if USE_SECOND_ORDER_MOTION:
+        second_order = np.zeros_like(first_order)
+        for t in range(1, T):
+            if frame_valid[t] and frame_valid[t - 1]:
+                second_order[t] = first_order[t] - first_order[t - 1]
+        return np.concatenate([first_order, second_order], axis=-1)
+
+    return first_order

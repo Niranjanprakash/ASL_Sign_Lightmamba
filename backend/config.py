@@ -15,18 +15,18 @@ UPLOAD_DIR = PROJECT_ROOT / "uploads"
 for folder in [DATASET_ROOT, VIDEO_DIR, METADATA_DIR, PROCESSED_DIR, CHECKPOINT_DIR, OUTPUT_DIR, UPLOAD_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
 
-# Centralized Classes Configuration (Phase 1: 10 ASL Words)
+# Best 10 classes by available video count from WLASL dataset
 CLASSES = [
-    "book",
-    "drink",
-    "computer",
     "before",
-    "chair",
+    "thin",
+    "cool",
+    "drink",
     "go",
-    "clothes",
+    "computer",
     "who",
-    "candy",
-    "cousin"
+    "cousin",
+    "help",
+    "candy"
 ]
 NUM_CLASSES = len(CLASSES)
 
@@ -36,7 +36,7 @@ IMAGE_SIZE = 224
 
 # Training Hyperparameters
 BATCH_SIZE = 8
-MAX_EPOCHS = 50
+MAX_EPOCHS = 120
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
 EARLY_STOPPING_PATIENCE = 10
@@ -47,16 +47,16 @@ RGB_FEATURE_DIM = 576  # MobileNetV3-Small feature dimension (last channel befor
 LANDMARK_EMBED_DIM = 256
 FUSION_DIM = 256
 MAMBA_HIDDEN_DIM = 256
-DROPOUT = 0.3
+DROPOUT = 0.5
 
 # Ablation & Novelty Configuration Switches
 USE_RGB = True
 USE_LANDMARKS = True
 USE_MOTION = True
-USE_SECOND_ORDER_MOTION = False
-USE_RELIABILITY_FUSION = False
-USE_HORIZONTAL_FLIP = False
+USE_SECOND_ORDER_MOTION = True
+USE_RELIABILITY_FUSION = True
+USE_HORIZONTAL_FLIP = True
 
 # Inference Config
-CONFIDENCE_THRESHOLD = 0.70
+CONFIDENCE_THRESHOLD = 0.25
 TEMPORAL_SMOOTHING_WINDOW = 5

@@ -1,8 +1,8 @@
 import time
 import os
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
-from backend.config import CLASSES, NUM_CLASSES, UPLOAD_DIR, CONFIDENCE_THRESHOLD
+from backend.config import CLASSES, NUM_CLASSES, UPLOAD_DIR, CONFIDENCE_THRESHOLD, OUTPUT_DIR
 from backend.utils import get_device
 
 main_bp = Blueprint("main", __name__)
@@ -15,6 +15,10 @@ def index():
         "supported_classes": CLASSES,
         "classes_count": NUM_CLASSES
     })
+
+@main_bp.route("/outputs/<path:filename>", methods=["GET"])
+def serve_outputs(filename):
+    return send_from_directory(str(OUTPUT_DIR), filename)
 
 @main_bp.route("/api/health", methods=["GET"])
 def health():

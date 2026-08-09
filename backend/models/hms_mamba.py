@@ -14,6 +14,8 @@ class HMSMamba(nn.Module):
     def __init__(self, in_dim: int = FUSION_DIM, hidden_dim: int = MAMBA_HIDDEN_DIM, dropout: float = DROPOUT):
         super().__init__()
         
+        self.drop = nn.Dropout(dropout)
+
         # Level 1 (Fine) Processing
         self.fine_mamba = MambaBlock(d_model=in_dim)
         
@@ -66,7 +68,7 @@ class HMSMamba(nn.Module):
         B, T, D = x.shape
         
         # 1. Level 1 (Fine Scale)
-        fine_feats = self.fine_mamba(x) # [B, 32, FUSION_DIM]
+        fine_feats = self.drop(self.fine_mamba(x)) # [B, 32, FUSION_DIM]
         fine_rep = self.pool_fine(fine_feats.transpose(1, 2)).squeeze(-1) # [B, FUSION_DIM]
         
         # 2. Downsample: 32 -> 16
@@ -74,7 +76,7 @@ class HMSMamba(nn.Module):
         x_down1 = self.downsample_1_to_2(x_conv1).transpose(1, 2) # [B, 16, MAMBA_HIDDEN_DIM]
         
         # 3. Level 2 (Intermediate Scale)
-        inter_feats = self.intermediate_mamba(x_down1) # [B, 16, MAMBA_HIDDEN_DIM]
+        inter_feats = self.drop(self.intermediate_mamba(x_down1)) # [B, 16, MAMBA_HIDDEN_DIM]
         inter_rep = self.pool_inter(inter_feats.transpose(1, 2)).squeeze(-1) # [B, MAMBA_HIDDEN_DIM]
         
         # 4. Downsample: 16 -> 8
@@ -82,7 +84,7 @@ class HMSMamba(nn.Module):
         x_down2 = self.downsample_2_to_3(x_conv2).transpose(1, 2) # [B, 8, MAMBA_HIDDEN_DIM]
         
         # 5. Level 3 (Global Scale)
-        global_feats = self.global_mamba(x_down2) # [B, 8, MAMBA_HIDDEN_DIM]
+        global_feats = self.drop(self.global_mamba(x_down2)) # [B, 8, MAMBA_HIDDEN_DIM]
         global_rep = self.pool_global(global_feats.transpose(1, 2)).squeeze(-1) # [B, MAMBA_HIDDEN_DIM]
         
         # 6. Multi-Scale Fusion

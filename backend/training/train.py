@@ -10,7 +10,8 @@ from tqdm import tqdm
 
 from backend.config import (
     CLASSES, BATCH_SIZE, MAX_EPOCHS, LEARNING_RATE, WEIGHT_DECAY,
-    PROCESSED_DIR, OUTPUT_DIR, RANDOM_SEED, USE_HORIZONTAL_FLIP
+    PROCESSED_DIR, OUTPUT_DIR, RANDOM_SEED, USE_HORIZONTAL_FLIP,
+    EARLY_STOPPING_PATIENCE, CHECKPOINT_DIR
 )
 from backend.utils import set_seed, get_device, logger
 from backend.data.dataset import ASLVideoDataset
@@ -78,28 +79,47 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
     
     # 4. Instantiate Model
-    # Start with stage 1 training: Freeze CNN backbone
     model = LightMambaASL(pretrained=True, freeze_backbone=True).to(device)
-    
+
     # 5. Define Loss, Optimizer, Scheduler, Early Stopping
     loss_fn = get_loss_fn(class_counts, use_weights=True)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0.05)  # stronger regularization
     scheduler = get_scheduler(optimizer, scheduler_type="ReduceLROnPlateau")
-    early_stopping = EarlyStopping(patience=10, verbose=True)
-    
+    early_stopping = EarlyStopping(patience=EARLY_STOPPING_PATIENCE, verbose=True)
+
     # Training History tracker
     history = {
         "train_loss": [], "train_acc": [],
         "val_loss": [], "val_acc": [],
         "lr": []
     }
-    
-    # Two-Stage Fine-tuning transition epoch configuration
-    STAGE2_EPOCH = 15
+
+    # Resume from last checkpoint if exists
+    start_epoch = 1
+    STAGE2_EPOCH = 20
     stage2_active = False
+    resume_path = CHECKPOINT_DIR / "last_model.pth"
+    if resume_path.exists():
+        print(f"[RESUME] Found checkpoint — resuming from {resume_path.name}")
+        ckpt = torch.load(resume_path, map_location=device)
+        model.load_state_dict(ckpt["model_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        start_epoch = ckpt["epoch"] + 1
+        early_stopping.best_loss = ckpt["validation_loss"]
+        # Load history if saved
+        history_path = OUTPUT_DIR / "metrics" / "training_history.json"
+        if history_path.exists():
+            with open(history_path) as f:
+                history = json.load(f)
+        if start_epoch > STAGE2_EPOCH:
+            model.rgb_branch.unfreeze_final_blocks()
+            stage2_active = True
+        print(f"[RESUME] Resuming from epoch {start_epoch}")
+    else:
+        print("[TRAIN] No checkpoint found — starting fresh.")
 
     logger.info("Starting training loop...")
-    for epoch in range(1, MAX_EPOCHS + 1):
+    for epoch in range(start_epoch, MAX_EPOCHS + 1):
         epoch_start = time.time()
         
         # Transition to Stage 2: Unfreeze MobileNet backbone and fine-tune with a lower LR

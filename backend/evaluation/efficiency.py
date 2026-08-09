@@ -20,8 +20,14 @@ def measure_efficiency(model: torch.nn.Module, device: torch.device) -> dict:
         model_size_mb = checkpoint_path.stat().st_size / (1024 * 1024)
         
     # 3. Latency & FPS measurements
+    from backend.config import USE_SECOND_ORDER_MOTION
     dummy_rgb = torch.randn(1, NUM_FRAMES, 3, 224, 224).to(device)
-    landmark_dim = 450 if USE_MOTION else 225
+    if not USE_MOTION:
+        landmark_dim = 225
+    elif USE_SECOND_ORDER_MOTION:
+        landmark_dim = 675  # 225 base + 225 first-order + 225 second-order
+    else:
+        landmark_dim = 450  # 225 base + 225 first-order
     dummy_landmarks = torch.randn(1, NUM_FRAMES, landmark_dim).to(device)
     dummy_mask = torch.ones(1, NUM_FRAMES, 3).to(device)
     

@@ -52,12 +52,13 @@ const IconBrain = () => (
 );
 
 const NAV_ITEMS = [
-  { to: '/',          label: 'Dashboard',        Icon: IconDashboard },
-  { to: '/live',      label: 'Live Recognition',  Icon: IconCamera },
-  { to: '/skeleton',  label: 'Skeleton Tracking', Icon: IconSkeleton },
-  { to: '/model',     label: 'Model Architecture',Icon: IconCpu },
-  { to: '/results',   label: 'Research Results',  Icon: IconBarChart },
-  { to: '/about',     label: 'About Project',     Icon: IconInfo },
+  { to: '/',           label: 'Dashboard',         Icon: IconDashboard },
+  { to: '/recognize',  label: 'Video Recognition', Icon: IconVideo },
+  { to: '/live',       label: 'Live Recognition',  Icon: IconCamera },
+  { to: '/skeleton',   label: 'Skeleton Tracking', Icon: IconSkeleton },
+  { to: '/model',      label: 'Model Architecture',Icon: IconCpu },
+  { to: '/results',    label: 'Research Results',  Icon: IconBarChart },
+  { to: '/about',      label: 'About Project',     Icon: IconInfo },
 ];
 
 export default function Sidebar({ open, onClose }) {

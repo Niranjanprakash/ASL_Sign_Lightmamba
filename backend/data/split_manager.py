@@ -5,21 +5,20 @@ from backend.config import CLASSES, RANDOM_SEED
 
 def get_fallback_split(video_id: str, train_ratio: float = 0.70, val_ratio: float = 0.15) -> str:
     """
-    Deterministically assigns a video_id to train, val, or test split using MD5 hash.
-    Ensures zero leakage across executions.
+    Deterministically assigns a video_id to train/val/test using MD5 hash.
     """
-    hash_val = int(hashlib.md5(video_id.encode('utf-8')).hexdigest(), 16) % 100
-    if hash_val < (train_ratio * 100):
+    hash_val = int(hashlib.md5(str(video_id).encode('utf-8')).hexdigest(), 16) % 100
+    if hash_val < int(train_ratio * 100):
         return "train"
-    elif hash_val < ((train_ratio + val_ratio) * 100):
+    elif hash_val < int((train_ratio + val_ratio) * 100):
         return "val"
-    else:
-        return "test"
+    return "test"
 
 def parse_wlasl_splits(metadata_json_path: Path, video_dir: Path):
     """
-    Parses the WLASL JSON file, filter classes to configured 10,
-    check video file availability, and assign to split.
+    Parses WLASL JSON, filters to configured classes, checks video availability.
+    Enforces signer-level split integrity: a signer present in train must NOT
+    appear in val or test (prevents identity leakage).
     """
     if not metadata_json_path.exists():
         print(f"[WARNING] Metadata file {metadata_json_path} not found. Fallback splitting will be used.")
@@ -32,33 +31,37 @@ def parse_wlasl_splits(metadata_json_path: Path, video_dir: Path):
         print(f"[ERROR] Could not parse metadata json: {e}")
         return None
 
-    samples = []
-    # Build class list matching exactly the config classes
     target_classes = set(CLASSES)
+
+    # First pass: collect all instances and build signer -> split mapping
+    raw_instances = []
+    signer_split: dict[str, str] = {}  # signer_id -> first assigned split
 
     for entry in data:
         gloss = entry.get("gloss", "").strip().lower()
         if gloss not in target_classes:
             continue
-
-        instances = entry.get("instances", [])
-        for inst in instances:
-            video_id = str(inst.get("video_id"))
-            split = inst.get("split")
-            
-            # WLASL uses train, val, test
-            if split not in ["train", "val", "test"]:
+        for inst in entry.get("instances", []):
+            video_id  = str(inst.get("video_id"))
+            signer_id = str(inst.get("signer_id", ""))
+            split     = inst.get("split", "")
+            if split not in ("train", "val", "test"):
                 split = get_fallback_split(video_id)
 
-            # Check if video exists (Kaggle WLASL usually saves them as video_id.mp4)
-            # Support both raw name or video_id matching
+            # Signer-level consistency: once a signer is assigned to a split, keep it
+            if signer_id and signer_id in signer_split:
+                split = signer_split[signer_id]
+            elif signer_id:
+                signer_split[signer_id] = split
+
             video_path = video_dir / f"{video_id}.mp4"
             if video_path.exists():
-                samples.append({
-                    "video_id": video_id,
+                raw_instances.append({
+                    "video_id":   video_id,
                     "video_path": str(video_path),
-                    "label": gloss,
-                    "split": split
+                    "label":      gloss,
+                    "split":      split,
+                    "signer_id":  signer_id,
                 })
-                
-    return samples
+
+    return raw_instances

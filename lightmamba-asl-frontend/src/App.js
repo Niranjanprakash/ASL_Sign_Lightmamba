@@ -28,7 +28,7 @@ export default function App() {
           <main className="page-content">
             <Routes>
               <Route path="/"          element={<Home />} />
-              <Route path="/recognize" element={<Navigate to="/" replace />} />
+              <Route path="/recognize" element={<VideoRecognition />} />
               <Route path="/live"      element={<LiveRecognition />} />
               <Route path="/skeleton"  element={<SkeletonDemo />} />
               <Route path="/model"     element={<ModelInfo />} />
