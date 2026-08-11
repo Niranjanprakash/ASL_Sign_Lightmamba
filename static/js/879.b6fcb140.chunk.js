@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunklightmamba_asl_frontend=self.webpackChunklightmamba_asl_frontend||[]).push([[879],{9879(s){s.exports=import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs")}}]);
