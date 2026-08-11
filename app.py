@@ -1,12 +1,32 @@
+import os
+import urllib.request
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from backend.routes import main_bp
 from backend.utils import verify_paths, get_device
-from backend.config import OUTPUT_DIR
+from backend.config import OUTPUT_DIR, CHECKPOINT_DIR
+
+# Download model weights on Render if not present
+MODEL_URL = os.environ.get("MODEL_WEIGHTS_URL", "")  # Set this in Render env vars
+
+def download_weights():
+    checkpoint_path = CHECKPOINT_DIR / "best_model.pth"
+    if not checkpoint_path.exists() and MODEL_URL:
+        print(f"[STARTUP] Downloading model weights from {MODEL_URL}...")
+        CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(MODEL_URL, str(checkpoint_path))
+        print("[STARTUP] Model weights downloaded.")
 
 def create_app():
+    download_weights()  # Download model if running on Render
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://niranjanprakash.github.io",  # GitHub Pages frontend
+    ])
     
     # Initialize directory paths
     verify_paths()
